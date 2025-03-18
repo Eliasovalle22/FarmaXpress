@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from home import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # URL para la página de inicio
+    path('farmaxpress/login/',views.iniciar_sesion, name='iniciar_sesion'),
+    # URL para dashboard
+    path('farmaxpress/dashboard/',views.dashboard, name='dashboard'),
+    # URL para reestablecer contraseña
+    path('farmaxpress/reestablecer_contrasena/',views.reestablecer_contrasena, name='reestablecer_contrasena'),
 ]
