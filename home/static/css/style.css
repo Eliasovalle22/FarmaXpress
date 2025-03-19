@@ -26,7 +26,7 @@ body {
 .login-image-section {
     position: relative;
     overflow: hidden;
-    max-height: 910px;
+    max-height: 950px;
 }
 
 .login-image-section img {

@@ -77,7 +77,7 @@ WSGI_APPLICATION = 'farmaxpress.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "farmaxpress",
+        "NAME": "db_farmaxpress",
         "USER": "postgres",
         "PASSWORD": "qwerty78963",
         "HOST": "190.242.60.212",

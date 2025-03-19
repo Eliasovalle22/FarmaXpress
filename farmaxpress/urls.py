@@ -31,5 +31,7 @@ urlpatterns = [
     path('farmaxpress/reestablecer_contrasena/',views.reestablecer_contrasena, name='reestablecer_contrasena'),
     # URL para registrar clientes
     path('farmaxpress/resgistrar_cliente/',views.registrar_cliente, name='registrar_cliente'),
+    #3 URL para registrar ventas
+    path('farmaxpress/registrar_venta/',views.registrar_venta, name='registrar_venta'),
     
 ]
