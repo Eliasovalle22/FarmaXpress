@@ -1,2 +1,5 @@
 from .roles import Rol
-from .usuarios import Usuario
+from .clientes import Cliente
+from .productos import Producto
+from .user import User
+from .ventas import Venta, DetalleVenta, Sede
