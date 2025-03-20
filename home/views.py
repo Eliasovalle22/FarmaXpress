@@ -5,7 +5,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django import forms
+from django.db import transaction
 from django.db.models import Count, Sum
+from django.http import JsonResponse
 # Create your views here.
 
 # ---------------------------- INICIO DE SESIÓN ---------------------------------
@@ -73,6 +75,10 @@ def actualizar_contrasena(request):
 
 @login_required
 def dashboard(request):
+    role = request.user.role.rol.lower() if request.user.role else None
+    user_sede = request.user.sede.nombre if request.user.sede else 'Sin sede'
+    clientes = Cliente.objects.all()
+    productos_disponibles = Producto.objects.filter(fecha_baja__isnull=True)
     total_productos = Producto.objects.count()
     total_ventas = Venta.objects.count()
     total_clientes = Cliente.objects.count()
@@ -92,8 +98,16 @@ def dashboard(request):
     sedes = [item['sede__nombre'] for item in ventas_por_sede]
     ventas = [item['total'] for item in ventas_por_sede]
 
+    # Añadimos el formulario de cliente al contexto
+    cliente_form = ClienteForm()
+
     # Datos específicos según el rol
     context = {
+        'role': role,
+        'user_sede': user_sede,
+        'cliente_form': ClienteForm(),
+        'clientes': clientes,
+        'productos_disponibles': productos_disponibles,
         'total_productos': total_productos,
         'total_ventas': total_ventas if user_role in ['admin', 'contable'] else None,
         'total_clientes': total_clientes if user_role in ['admin', 'vendedor'] else None,
@@ -102,6 +116,7 @@ def dashboard(request):
         'sedes': sedes,
         'ventas': ventas,
         'user_sede': request.user.sede.nombre if request.user.sede else 'Sin sede asignada',
+        'cliente_form': cliente_form,  # Añadimos el formulario al contexto
     }
     return render(request, 'dashboard.html', context)
 
@@ -118,22 +133,24 @@ class ClienteForm(forms.ModelForm):
         fields = ['nombre', 'apellido', 'correo', 'direccion', 'telefono']
 
 
+@login_required
 def registrar_cliente(request):
-    # Solo admin y vendedor pueden registrar clientes
-    if request.user.role.rol not in ['admin', 'vendedor']:
-        messages.error(request, 'No tienes permiso para registrar clientes.')
-        return redirect('dashboard')
-
     if request.method == 'POST':
         form = ClienteForm(request.POST)
         if form.is_valid():
-            cliente = form.save(commit=False)
-            cliente.save()
-            messages.success(request, 'Cliente registrado correctamente')
-            return redirect('dashboard')
+            form.save()
+            return JsonResponse({
+                'success': True,
+                'message': 'Cliente registrado exitosamente.'
+            })
         else:
-            messages.error(
-                request, 'Error al registrar el cliente. Revisa los datos.')
+            # Devolver los errores del formulario en formato JSON
+            errors = {field: error for field, error in form.errors.items()}
+            return JsonResponse({
+                'success': False,
+                'message': 'Por favor, corrija los errores en el formulario.',
+                'errors': errors
+            }, status=400)
     else:
         form = ClienteForm()
     return render(request, 'registrar_cliente.html', {'form': form})
@@ -153,64 +170,104 @@ class VentaForm(forms.Form):
 
 @login_required
 def registrar_venta(request):
-    if request.user.role.rol not in ['admin', 'vendedor']:
-        messages.error(request, 'No tienes permiso para registrar ventas.')
-        return redirect('dashboard')
-
-    sede_usuario = request.user.sede
-    if not sede_usuario:
-        messages.error(request, 'No tienes una sede asignada.')
-        return redirect('dashboard')
-
-    productos_disponibles = Producto.objects.filter(
-        stock_sede1__gt=0) if sede_usuario.nombre == "Sede 1" else Producto.objects.filter(stock_sede2__gt=0)
-
     if request.method == 'POST':
-        form = VentaForm(request.POST)
-        if form.is_valid():
-            from django.db import transaction
-            try:
-                with transaction.atomic():
-                    venta = Venta.objects.create(
-                        sede=sede_usuario,
-                        vendedor=request.user,
-                        cliente=form.cleaned_data['cliente']
+        cliente_id = request.POST.get('cliente')
+        productos_ids = request.POST.getlist('productos')
+        cantidades_str = request.POST.get('cantidades', '')
+
+        if not productos_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'Debe seleccionar al menos un producto.'
+            }, status=400)
+
+        # Validar que cantidades no esté vacío
+        if not cantidades_str:
+            return JsonResponse({
+                'success': False,
+                'message': 'No se enviaron las cantidades de los productos. Por favor, intente de nuevo.'
+            }, status=400)
+
+        cantidades = cantidades_str.split(',')
+        # Asegurarse de que la longitud de cantidades coincida con la cantidad de productos disponibles
+        productos_disponibles = Producto.objects.filter(fecha_baja__isnull=True)
+        if len(cantidades) != productos_disponibles.count():
+            return JsonResponse({
+                'success': False,
+                'message': f'Error en el formato de las cantidades. Se esperaban {productos_disponibles.count()} valores, pero se recibieron {len(cantidades)}.'
+            }, status=400)
+
+        try:
+            with transaction.atomic():
+                # Crear la venta
+                cliente = Cliente.objects.get(id=cliente_id) if cliente_id else None
+                sede = request.user.sede
+                venta = Venta.objects.create(
+                    sede=sede,
+                    vendedor=request.user,
+                    cliente=cliente,
+                    total=0.00
+                )
+
+                # Crear los detalles de la venta
+                for i, producto_id in enumerate(productos_ids):
+                    # Convertir la cantidad a entero, manejando posibles valores vacíos
+                    try:
+                        cantidad = int(cantidades[i]) if cantidades[i] else 0
+                    except ValueError:
+                        return JsonResponse({
+                            'success': False,
+                            'message': f'Cantidad inválida para el producto en la posición {i+1}.'
+                        }, status=400)
+
+                    if cantidad <= 0:
+                        continue
+
+                    producto = Producto.objects.get(id=producto_id)
+                    stock_field = 'stock_sede1' if sede.nombre == "FarmaXpress Sede Sur" else 'stock_sede2'
+                    stock_disponible = getattr(producto, stock_field)
+
+                    if cantidad > stock_disponible:
+                        return JsonResponse({
+                            'success': False,
+                            'message': f'Stock insuficiente para {producto.nombre}. Disponible: {stock_disponible}.'
+                        }, status=400)
+
+                    # Crear detalle de venta
+                    DetalleVenta.objects.create(
+                        venta=venta,
+                        producto=producto,
+                        cantidad=cantidad,
+                        precio_unitario=producto.precio,
+                        subtotal=cantidad * producto.precio
                     )
-                    productos_seleccionados = form.cleaned_data['productos']
-                    cantidades = request.POST.get('cantidades', '').split(',')
-                    stock_field = 'stock_sede1' if sede_usuario.nombre == "Sede 1" else 'stock_sede2'
 
-                    for producto, cantidad_str in zip(productos_seleccionados, cantidades):
-                        cantidad = int(cantidad_str)
-                        if cantidad <= 0:
-                            continue
+                    # Actualizar stock
+                    setattr(producto, stock_field, stock_disponible - cantidad)
+                    producto.save()
 
-                        stock_actual = getattr(producto, stock_field)
-                        if stock_actual < cantidad:
-                            raise ValueError(
-                                f"Stock insuficiente para {producto.nombre}")
+                # Actualizar el total de la venta
+                venta.actualizar_total()
 
-                        setattr(producto, stock_field, stock_actual - cantidad)
-                        producto.save()
+            return JsonResponse({
+                'success': True,
+                'message': 'Venta registrada exitosamente.'
+            })
 
-                        DetalleVenta.objects.create(
-                            venta=venta,
-                            producto=producto,
-                            cantidad=cantidad,
-                            precio_unitario=producto.precio
-                        )
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al registrar la venta: {str(e)}'
+            }, status=500)
 
-                    messages.success(request, 'Venta registrada correctamente')
-                    return redirect('dashboard')
-            except Exception as e:
-                messages.error(
-                    request, f'Error al registrar la venta: {str(e)}')
     else:
+        clientes = Cliente.objects.all()
+        productos_disponibles = Producto.objects.filter(fecha_baja__isnull=True)
         form = VentaForm()
-
-    context = {
-        'form': form,
-        'productos_disponibles': productos_disponibles,
-        'sede': sede_usuario,
-    }
-    return render(request, 'registrar_venta.html', context)
+        context = {
+            'form': form,
+            'clientes': clientes,
+            'productos_disponibles': productos_disponibles,
+            'sede': request.user.sede.nombre if request.user.sede else 'Sin sede'
+        }
+        return render(request, 'registrar_venta.html', context)

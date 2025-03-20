@@ -9,44 +9,50 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <!-- Tipografía moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="login-container d-flex vh-100">
         <!-- Imagen de fondo -->
-        <div class="login-image-section col-12 col-md-6 p-0">
+        <div class="login-image-section col-12 col-md-6 p-0 position-relative">
             <img src="{% static 'image/img_login.png' %}" alt="FarmaXpress Store" class="img-fluid h-100 w-100 object-fit-cover">
-            <div class="overlay-text text-white text-center">
-                <p class="lead">Tu salud, nuestra prioridad</p>
+            <div class="overlay-text text-white text-center position-absolute top-50 start-50 translate-middle">
+                <p class="lead mt-2">Tu salud, nuestra prioridad</p>
             </div>
         </div>
         <!-- Formulario de login -->
-        <div class="login-form-section col-12 col-md-6 d-flex align-items-center justify-content-center p-4">
-            <div class="login-box p-5 bg-white shadow-lg rounded-2">
-                <h2 class="text-center mb-4 text-primary">Bienvenido</h2>
+        <div class="login-form-section col-12 col-md-6 d-flex align-items-center justify-content-center p-4 bg-light">
+            <div class="login-box p-5 bg-white shadow-lg rounded-3">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-primary">Bienvenido</h2>
+                    <p class="text-muted">Inicia sesión para continuar</p>
+                </div>
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-danger text-center mb-3">{{ message }}</div>
+                        <div class="alert alert-danger alert-dismissible fade show text-center mb-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     {% endfor %}
                 {% endif %}
                 <form method="post" action="{% url 'iniciar_sesion' %}" class="needs-validation" novalidate>
                     {% csrf_token %}
-                    <div class="form-group mb-3">
-                        <label for="id_username" class="form-label visually-hidden">Usuario</label>
-                        <input type="text" class="form-control form-control-lg" id="id_username" name="username" placeholder="Ingrese su usuario" required>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control form-control-lg" id="id_username" name="username" placeholder="Usuario" required>
+                        <label for="id_username">Usuario</label>
                         <div class="invalid-feedback">Por favor, ingrese un usuario válido.</div>
                     </div>
-                    <div class="form-group mb-3 position-relative">
-                        <label for="id_password" class="form-label visually-hidden">Contraseña</label>
-                        <input type="password" class="form-control form-control-lg" id="id_password" name="password" placeholder="Ingrese su contraseña" required>
-                        <i class="bi bi-eye position-absolute top-50 end-0 translate-middle-y me-3" id="togglePassword" style="cursor: pointer;"></i>
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="password" class="form-control form-control-lg" id="id_password" name="password" placeholder="Contraseña" required>
+                        <label for="id_password">Contraseña</label>
+                        <i class="bi bi-eye position-absolute top-50 end-0 translate-middle-y me-3 toggle-password" id="togglePassword" style="cursor: pointer;"></i>
                         <div class="invalid-feedback">Por favor, ingrese su contraseña.</div>
                     </div>
-                    <button type="submit" class="btn btn-tertiary w-100 py-2 mb-3">Iniciar Sesión</button>
-                    <p class="text-center mb-2">
-                        <a href="{% url 'reestablecer_contrasena' %}" class="text-tertiary text-decoration-none">¿Olvidaste tu contraseña?</a>
+                    <button type="submit" class="btn btn-tertiary w-100 py-3 fw-semibold">Iniciar Sesión</button>
+                    <p class="text-center mt-3">
+                        <a href="{% url 'reestablecer_contrasena' %}" class="text-tertiary text-decoration-none fw-medium">¿Olvidaste tu contraseña?</a>
                     </p>
-                    <div class="login-brand text-center text-tertiary fw-bold">FarmaXpress</div>
+                    <div class="login-brand text-center text-tertiary fw-bold mt-4">FarmaXpress</div>
                 </form>
             </div>
         </div>
