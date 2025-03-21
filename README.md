@@ -31,3 +31,8 @@
 7. Login
    
    ![image](https://github.com/user-attachments/assets/e824dbe9-4baf-40c7-80b3-c7c92b28d60c)
+
+
+8. Dashboard segun el Rol ( Admin)
+
+![image](https://github.com/user-attachments/assets/f9861f35-ed40-478b-a05e-6fb8bcd19859)
