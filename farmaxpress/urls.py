@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from home import views
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -33,5 +35,14 @@ urlpatterns = [
     path('farmaxpress/resgistrar_cliente/',views.registrar_cliente, name='registrar_cliente'),
     #3 URL para registrar ventas
     path('farmaxpress/registrar_venta/',views.registrar_venta, name='registrar_venta'),
-    
-]
+    # URL para gestionar productos
+    path('farmaxpress/gestionar_productos/',views.gestionar_productos, name='gestionar_productos'),
+    # URL para agregar productos
+    path('farmaxpress/agregar_producto/',views.agregar_producto, name='agregar_producto'),
+    # URL para actualizar productos
+    path('farmaxpress/actualizar_producto/<int:producto_id>/',views.actualizar_producto, name='actualizar_producto'),
+    # URL para eliminar productos
+    path('farmaxpress/eliminar_producto/<int:producto_id>/',views.eliminar_producto, name='eliminar_producto'),
+    # URL para dar de baja productos
+    path('farmaxpress/dar_baja_producto/<int:producto_id>/',views.dar_baja_producto, name='dar_baja_producto'),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

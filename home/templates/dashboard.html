@@ -172,12 +172,141 @@
                     </div>
                 </div>
 
-                <!-- Productos (placeholder) -->
+                <!-- Productos -->
                 <div class="content-section" id="productos-section" style="display: none;">
-                    <h3 class="section-title">Productos</h3>
-                    <div class="card">
-                        <div class="card-body">
-                            <p>Contenido de Productos (a implementar).</p>
+                    <h3 class="section-title">Gestión de Productos</h3>
+                    <div class="card p-2">
+                        <!-- Formulario para agregar/editar productos -->
+                        <h4 class="mt-3">Agregar Producto</h4>
+                        <form id="producto-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="producto_id" id="producto_id">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_nombre" class="form-label">Nombre</label>
+                                        {{ form.nombre|add_class:"form-control" }}
+                                        <div class="invalid-feedback">Por favor, ingrese el nombre.</div>
+                                        <div class="error-message text-danger small" id="error-nombre"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_codigo" class="form-label">Código</label>
+                                        {{ form.codigo|add_class:"form-control" }}
+                                        <div class="invalid-feedback">Por favor, ingrese un código único.</div>
+                                        <div class="error-message text-danger small" id="error-codigo"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_precio" class="form-label">Precio</label>
+                                        {{ form.precio|add_class:"form-control" }}
+                                        <div class="invalid-feedback">Por favor, ingrese un precio válido.</div>
+                                        <div class="error-message text-danger small" id="error-precio"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_categoria" class="form-label">Categoría</label>
+                                        {{ form.categoria|add_class:"form-control" }}
+                                        <div class="error-message text-danger small" id="error-categoria"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_stock_sede1" class="form-label">Stock Sede Sur</label>
+                                        {{ form.stock_sede1|add_class:"form-control" }}
+                                        <div class="invalid-feedback">Por favor, ingrese un valor válido.</div>
+                                        <div class="error-message text-danger small" id="error-stock_sede1"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_stock_sede2" class="form-label">Stock Sede Norte</label>
+                                        {{ form.stock_sede2|add_class:"form-control" }}
+                                        <div class="invalid-feedback">Por favor, ingrese un valor válido.</div>
+                                        <div class="error-message text-danger small" id="error-stock_sede2"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_imagen" class="form-label">Imagen</label>
+                                        {{ form.imagen|add_class:"form-control" }}
+                                        <div class="error-message text-danger small" id="error-imagen"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="id_descripcion" class="form-label">Descripción</label>
+                                        {{ form.descripcion|add_class:"form-control" }}
+                                        <div class="error-message text-danger small" id="error-descripcion"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 d-flex gap-2">
+                                <button type="submit" class="btn btn-tertiary">Guardar</button>
+                                <button type="button" class="btn btn-secondary" id="cancelar-edicion" style="display: none;">Cancelar Edición</button>
+                            </div>
+                        </form>
+
+                        <!-- Lista de productos -->
+                        <h4 class="mt-4">Lista de Productos</h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Imagen</th>
+                                        <th>Nombre</th>
+                                        <th>Código</th>
+                                        <th>Precio</th>
+                                        <th>Stock Sede Sur</th>
+                                        <th>Stock Sede Norte</th>
+                                        <th>Stock Total</th>
+                                        <th>Categoría</th>
+                                        <th>Estado</th>
+                                        {% if user_role in 'admin,inventario' %}
+                                            <th>Acciones</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody id="productos-table-body">
+                                    {% for producto in productos %}
+                                    <tr data-id="{{ producto.id }}">
+                                        <td>
+                                            {% if producto.imagen %}
+                                                <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}" style="max-width: 50px; max-height: 50px;">
+                                            {% else %}
+                                                Sin imagen
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ producto.nombre }}</td>
+                                        <td>{{ producto.codigo }}</td>
+                                        <td>{{ producto.precio }}</td>
+                                        <td class="{% if producto.stock_sede1 < 10 %}text-danger{% endif %}">{{ producto.stock_sede1 }}</td>
+                                        <td class="{% if producto.stock_sede2 < 10 %}text-danger{% endif %}">{{ producto.stock_sede2 }}</td>
+                                        <td>{{ producto.stock_total }}</td>
+                                        <td>{{ producto.categoria|default:"Sin categoría" }}</td>
+                                        <td>
+                                            {% if producto.fecha_baja %}
+                                                Dado de baja
+                                            {% else %}
+                                                Activo
+                                            {% endif %}
+                                        </td>
+                                        {% if user_role in 'admin,inventario' %}
+                                            <td>
+                                                <button class="btn btn-sm btn-primary editar-producto">Editar</button>
+                                                <button class="btn btn-sm btn-danger eliminar-producto">Eliminar</button>
+                                                {% if not producto.fecha_baja %}
+                                                    <button class="btn btn-sm btn-warning dar-baja-producto">Dar de Baja</button>
+                                                {% endif %}
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -460,6 +589,188 @@
                 }
             });
         }
+
+        // Manejo del formulario de Productos con AJAX
+        document.getElementById('producto-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!this.checkValidity()) return;
+
+            // Limpiar errores anteriores
+            document.querySelectorAll('.error-message').forEach(error => error.textContent = '');
+
+            const productoId = document.getElementById('producto_id').value;
+            const url = productoId ? `/actualizar_producto/${productoId}/` : "{% url 'agregar_producto' %}";
+            const formData = new FormData(this);
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const messagesContainer = document.getElementById('messages-container');
+                messagesContainer.innerHTML = '';
+                if (data.success) {
+                    messagesContainer.innerHTML = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            ${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                    // Recargar la página para actualizar la lista de productos
+                    location.reload();
+                } else {
+                    messagesContainer.innerHTML = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            ${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                    if (data.errors) {
+                        for (const [field, error] of Object.entries(data.errors)) {
+                            const errorElement = document.getElementById(`error-${field}`);
+                            if (errorElement) {
+                                errorElement.textContent = error;
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('messages-container').innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        Error al guardar el producto. Intente de nuevo.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+            });
+        });
+
+        // Lógica para editar un producto
+        document.querySelectorAll('.editar-producto').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const productoId = row.getAttribute('data-id');
+                const nombre = row.querySelector('td:nth-child(2)').textContent;
+                const codigo = row.querySelector('td:nth-child(3)').textContent;
+                const precio = row.querySelector('td:nth-child(4)').textContent;
+                const stockSede1 = row.querySelector('td:nth-child(5)').textContent;
+                const stockSede2 = row.querySelector('td:nth-child(6)').textContent;
+                const categoria = row.querySelector('td:nth-child(8)').textContent;
+                const descripcion = row.querySelector('td:nth-child(2)').textContent; // Nota: Necesitarás agregar descripción a la tabla si deseas mostrarla
+
+                // Rellenar el formulario con los datos del producto
+                document.getElementById('producto_id').value = productoId;
+                document.getElementById('id_nombre').value = nombre;
+                document.getElementById('id_codigo').value = codigo;
+                document.getElementById('id_precio').value = precio;
+                document.getElementById('id_stock_sede1').value = stockSede1;
+                document.getElementById('id_stock_sede2').value = stockSede2;
+                document.getElementById('id_categoria').value = categoria === 'Sin categoría' ? '' : categoria;
+                document.getElementById('id_descripcion').value = ''; // Ajustar si tienes descripción en la tabla
+                document.getElementById('id_imagen').value = ''; // No se puede pre-rellenar el campo de archivo
+                document.querySelector('#producto-form h4').textContent = 'Editar Producto';
+                document.getElementById('cancelar-edicion').style.display = 'inline-block';
+            });
+        });
+
+        // Cancelar edición
+        document.getElementById('cancelar-edicion').addEventListener('click', function() {
+            document.getElementById('producto-form').reset();
+            document.getElementById('producto_id').value = '';
+            document.querySelector('#producto-form h4').textContent = 'Agregar Producto';
+            this.style.display = 'none';
+        });
+
+        // Lógica para eliminar un producto
+        document.querySelectorAll('.eliminar-producto').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+
+                const row = this.closest('tr');
+                const productoId = row.getAttribute('data-id');
+
+                fetch(`/eliminar_producto/${productoId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const messagesContainer = document.getElementById('messages-container');
+                    messagesContainer.innerHTML = '';
+                    if (data.success) {
+                        messagesContainer.innerHTML = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>`;
+                        row.remove();
+                    } else {
+                        messagesContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('messages-container').innerHTML = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            Error al eliminar el producto. Intente de nuevo.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                });
+            });
+        });
+
+        // Lógica para dar de baja un producto
+        document.querySelectorAll('.dar-baja-producto').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!confirm('¿Estás seguro de que deseas dar de baja este producto?')) return;
+
+                const row = this.closest('tr');
+                const productoId = row.getAttribute('data-id');
+
+                fetch(`/dar_baja_producto/${productoId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const messagesContainer = document.getElementById('messages-container');
+                    messagesContainer.innerHTML = '';
+                    if (data.success) {
+                        messagesContainer.innerHTML = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>`;
+                        row.querySelector('td:nth-child(9)').textContent = 'Dado de baja';
+                        row.querySelector('.dar-baja-producto').remove();
+                    } else {
+                        messagesContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('messages-container').innerHTML = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            Error al dar de baja el producto. Intente de nuevo.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                });
+            });
+        });
     </script>
 </body>
 </html>

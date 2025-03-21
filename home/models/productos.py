@@ -11,6 +11,8 @@ class Producto(models.Model):
     fecha_alta = models.DateTimeField(auto_now_add=True)
     fecha_baja = models.DateTimeField(blank=True, null=True)
     categoria = models.CharField(max_length=50, blank=True)
+    imagen = models.ImageField(
+        upload_to='productos/', blank=True, null=True)
 
     class Meta:
         db_table = 'productos'
@@ -19,6 +21,9 @@ class Producto(models.Model):
 
     def stock_total(self):
         return self.stock_sede1 + self.stock_sede2
+
+    def is_low_stock(self):
+        return self.stock_sede1 < 5 or self.stock_sede2 < 5
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo})"

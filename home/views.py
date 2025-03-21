@@ -1,3 +1,5 @@
+from django.utils import timezone
+from django.core.mail import send_mail
 from django.shortcuts import render, redirect
 from home.models import User, Cliente, Producto, Venta, Sede, Rol, DetalleVenta
 from django.contrib import messages
@@ -92,32 +94,32 @@ def dashboard(request):
         ventas_por_sede = Venta.objects.values('sede__nombre').annotate(
             total=Count('id')).order_by('sede__nombre')
     else:
-        # Mostrar solo las ventas de la sede del usuario
         ventas_por_sede = Venta.objects.filter(sede=request.user.sede).values(
             'sede__nombre').annotate(total=Count('id')).order_by('sede__nombre')
 
     sedes = [item['sede__nombre'] for item in ventas_por_sede]
     ventas = [item['total'] for item in ventas_por_sede]
 
-    # Añadimos el formulario de cliente al contexto
+    # Añadimos el formulario de cliente y productos al contexto
     cliente_form = ClienteForm()
+    producto_form = ProductoForm()  # Añadimos el formulario de productos
+    productos = Producto.objects.all()  # Añadimos la lista de productos
 
-    # Datos específicos según el rol
     context = {
         'role': role,
         'user_sede': user_sede,
-        'cliente_form': ClienteForm(),
+        'cliente_form': cliente_form,
+        'form': producto_form,  # Usamos 'form' para el formulario de productos
+        'productos': productos,
         'clientes': clientes,
         'productos_disponibles': productos_disponibles,
         'total_productos': total_productos,
         'total_ventas': total_ventas if user_role in ['admin', 'contable'] else None,
         'total_clientes': total_clientes if user_role in ['admin', 'vendedor'] else None,
         'stock_bajo': stock_bajo if user_role in ['admin', 'inventario'] else None,
-        'role': user_role,
+        'user_role': user_role,
         'sedes': sedes,
         'ventas': ventas,
-        'user_sede': request.user.sede.nombre if request.user.sede else 'Sin sede asignada',
-        'cliente_form': cliente_form,
     }
     return render(request, 'dashboard.html', context)
 
@@ -289,3 +291,185 @@ def registrar_venta(request):
             'sede': request.user.sede.nombre if request.user.sede else 'Sin sede'
         }
         return render(request, 'registrar_venta.html', context)
+
+
+#
+# ----------------------------  REGISTAR PRODUCTOS---------------------------------
+#
+
+
+class ProductoForm(forms.ModelForm):
+    class Meta:
+        model = Producto
+        fields = ['nombre', 'codigo', 'descripcion', 'precio', 'stock_sede1', 'stock_sede2', 'categoria', 'imagen']
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data.get('codigo')
+        if self.instance.pk:
+            if Producto.objects.filter(codigo=codigo).exclude(pk=self.instance.pk).exists():
+                raise forms.ValidationError("Este código ya está en uso.")
+        else:
+            if Producto.objects.filter(codigo=codigo).exists():
+                raise forms.ValidationError("Este código ya está en uso.")
+        return codigo
+
+
+#
+# ----------------------------  GESTIÓN DE PRODUCTOS---------------------------------
+#
+
+# Vista para listar y gestionar productos
+@login_required
+@permission_required('home.view_producto', raise_exception=True)
+def gestionar_productos(request):
+    if request.user.role.rol not in ['admin', 'inventario']:
+        messages.error(request, 'No tienes permiso para gestionar productos.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para gestionar productos.'}, status=403)
+
+    productos = Producto.objects.all()
+    form = ProductoForm()
+    context = {
+        'productos': productos,
+        'form': form,
+        'user_role': request.user.role.rol if request.user.role else None,
+    }
+    return render(request, 'dashboard.html', context)
+
+# Vista para agregar un producto
+
+
+@login_required
+@permission_required('home.add_producto', raise_exception=True)
+def agregar_producto(request):
+    if request.user.role.rol not in ['admin', 'inventario']:
+        messages.error(request, 'No tienes permiso para agregar productos.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para agregar productos.'}, status=403)
+
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES)
+        if form.is_valid():
+            producto = form.save()
+            # Verificar si el stock es bajo después de agregar
+            if producto.is_low_stock():
+                enviar_alerta_stock_bajo(producto, request.user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Producto agregado exitosamente.'
+            })
+        else:
+            errors = {field: error for field, error in form.errors.items()}
+            return JsonResponse({
+                'success': False,
+                'message': 'Por favor, corrija los errores en el formulario.',
+                'errors': errors
+            }, status=400)
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+# Vista para actualizar un producto
+
+
+@login_required
+@permission_required('home.change_producto', raise_exception=True)
+def actualizar_producto(request, producto_id):
+    if request.user.role.rol not in ['admin', 'inventario']:
+        messages.error(request, 'No tienes permiso para actualizar productos.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para actualizar productos.'}, status=403)
+
+    try:
+        producto = Producto.objects.get(id=producto_id)
+    except Producto.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Producto no encontrado.'}, status=404)
+
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES, instance=producto)
+        if form.is_valid():
+            producto = form.save()
+            # Verificar si el stock es bajo después de actualizar
+            if producto.is_low_stock():
+                enviar_alerta_stock_bajo(producto, request.user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Producto actualizado exitosamente.'
+            })
+        else:
+            errors = {field: error for field, error in form.errors.items()}
+            return JsonResponse({
+                'success': False,
+                'message': 'Por favor, corrija los errores en el formulario.',
+                'errors': errors
+            }, status=400)
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+# Vista para eliminar un producto
+
+
+@login_required
+@permission_required('home.delete_producto', raise_exception=True)
+def eliminar_producto(request, producto_id):
+    if request.user.role.rol not in ['admin', 'inventario']:
+        messages.error(request, 'No tienes permiso para eliminar productos.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para eliminar productos.'}, status=403)
+
+    try:
+        producto = Producto.objects.get(id=producto_id)
+        producto.delete()
+        return JsonResponse({
+            'success': True,
+            'message': 'Producto eliminado exitosamente.'
+        })
+    except Producto.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Producto no encontrado.'}, status=404)
+
+# Vista para dar de baja un producto
+
+
+@login_required
+@permission_required('home.change_producto', raise_exception=True)
+def dar_baja_producto(request, producto_id):
+    if request.user.role.rol not in ['admin', 'inventario']:
+        messages.error(
+            request, 'No tienes permiso para dar de baja productos.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para dar de baja productos.'}, status=403)
+
+    try:
+        producto = Producto.objects.get(id=producto_id)
+        if producto.fecha_baja:
+            return JsonResponse({'success': False, 'message': 'El producto ya está dado de baja.'}, status=400)
+        producto.fecha_baja = timezone.now()
+        producto.save()
+        return JsonResponse({
+            'success': True,
+            'message': 'Producto dado de baja exitosamente.'
+        })
+    except Producto.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Producto no encontrado.'}, status=404)
+
+
+# Función para enviar alertas de stock bajo
+
+
+def enviar_alerta_stock_bajo(producto, usuario_actual):
+    # Enviar alerta a todos los usuarios con rol "inventario"
+    usuarios_inventario = User.objects.filter(role__rol='inventario')
+    subject = f'Alerta: Stock bajo para {producto.nombre}'
+    message = f"""
+    Hola,
+
+    El producto {producto.nombre} ({producto.codigo}) tiene un stock bajo:
+    - Stock en Sede Sur: {producto.stock_sede1}
+    - Stock en Sede Norte: {producto.stock_sede2}
+
+    Este cambio fue realizado por {usuario_actual.first_name} {usuario_actual.last_name} ({usuario_actual.username}).
+    Por favor, considera reabastecer este producto.
+
+    Saludos,
+    FarmaXpress
+    """
+    from_email = 'no-reply@farmaxpress.com'
+    recipient_list = [user.email for user in usuarios_inventario if user.email]
+
+    if recipient_list:
+        try:
+            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        except Exception as e:
+            print(f"Error al enviar correo: {str(e)}")
