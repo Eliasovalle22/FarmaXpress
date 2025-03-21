@@ -36,3 +36,9 @@
 8. Dashboard segun el Rol ( Admin)
 
 ![image](https://github.com/user-attachments/assets/f9861f35-ed40-478b-a05e-6fb8bcd19859)
+
+
+9. Dashboard segun el Rol ( Vendedor)
+
+
+![image](https://github.com/user-attachments/assets/f6b68e95-61b7-4207-ab99-ba3d5b0e9312)
