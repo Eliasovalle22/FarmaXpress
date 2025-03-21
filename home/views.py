@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from home.models import User, Cliente, Producto, Venta, Sede, Rol, DetalleVenta
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.views.decorators.csrf import csrf_protect
 from django import forms
 from django.db import transaction
@@ -43,6 +43,7 @@ def cerrar_sesion(request):
 #
 # ---------------------------- REESTABLECER CONTRASEÑA ---------------------------------
 #
+
 
 def reestablecer_contrasena(request):
     return render(request, 'reestablecer_contrasena.html')
@@ -116,7 +117,7 @@ def dashboard(request):
         'sedes': sedes,
         'ventas': ventas,
         'user_sede': request.user.sede.nombre if request.user.sede else 'Sin sede asignada',
-        'cliente_form': cliente_form,  # Añadimos el formulario al contexto
+        'cliente_form': cliente_form,
     }
     return render(request, 'dashboard.html', context)
 
@@ -134,7 +135,12 @@ class ClienteForm(forms.ModelForm):
 
 
 @login_required
+@permission_required('home.add_cliente', raise_exception=True)
 def registrar_cliente(request):
+    if request.user.role.rol not in ['admin', 'vendedor']:
+        messages.error(request, 'No tienes permiso para registrar clientes.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para registrar clientes.'}, status=403)
+
     if request.method == 'POST':
         form = ClienteForm(request.POST)
         if form.is_valid():
@@ -169,7 +175,16 @@ class VentaForm(forms.Form):
 
 
 @login_required
+@permission_required('home.add_venta', raise_exception=True)
 def registrar_venta(request):
+    if request.user.role.rol not in ['admin', 'vendedor']:
+        messages.error(request, 'No tienes permiso para registrar ventas.')
+        return JsonResponse({'success': False, 'message': 'No tienes permiso para registrar ventas.'}, status=403)
+
+    if not request.user.sede:
+        messages.error(request, 'No tienes una sede asignada.')
+        return JsonResponse({'success': False, 'message': 'No tienes una sede asignada.'}, status=403)
+
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente')
         productos_ids = request.POST.getlist('productos')
@@ -190,7 +205,8 @@ def registrar_venta(request):
 
         cantidades = cantidades_str.split(',')
         # Asegurarse de que la longitud de cantidades coincida con la cantidad de productos disponibles
-        productos_disponibles = Producto.objects.filter(fecha_baja__isnull=True)
+        productos_disponibles = Producto.objects.filter(
+            fecha_baja__isnull=True)
         if len(cantidades) != productos_disponibles.count():
             return JsonResponse({
                 'success': False,
@@ -200,7 +216,8 @@ def registrar_venta(request):
         try:
             with transaction.atomic():
                 # Crear la venta
-                cliente = Cliente.objects.get(id=cliente_id) if cliente_id else None
+                cliente = Cliente.objects.get(
+                    id=cliente_id) if cliente_id else None
                 sede = request.user.sede
                 venta = Venta.objects.create(
                     sede=sede,
@@ -262,7 +279,8 @@ def registrar_venta(request):
 
     else:
         clientes = Cliente.objects.all()
-        productos_disponibles = Producto.objects.filter(fecha_baja__isnull=True)
+        productos_disponibles = Producto.objects.filter(
+            fecha_baja__isnull=True)
         form = VentaForm()
         context = {
             'form': form,
