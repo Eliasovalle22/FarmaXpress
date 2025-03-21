@@ -27,5 +27,7 @@
 
 5. Ejecución local
     python manage.py runserver 0.0.0.0:8000
-6. Login
+   
+7. Login
+   
    ![image](https://github.com/user-attachments/assets/e824dbe9-4baf-40c7-80b3-c7c92b28d60c)
