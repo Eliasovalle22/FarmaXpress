@@ -12,11 +12,11 @@ class UserAdminForm(forms.ModelForm):
         model = User
         fields = '__all__'
 
-    # Campos para la contraseña (similar al formulario predeterminado del admin)
+    # Campos para la contraseña
     password1 = forms.CharField(
-        label='Contraseña', widget=forms.PasswordInput, required=False)
+        label='Nueva contraseña', widget=forms.PasswordInput, required=False)
     password2 = forms.CharField(
-        label='Confirmar contraseña', widget=forms.PasswordInput, required=False)
+        label='Confirmar nueva contraseña', widget=forms.PasswordInput, required=False)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -26,6 +26,12 @@ class UserAdminForm(forms.ModelForm):
         # Validar que las contraseñas coincidan
         if password1 and password2 and password1 != password2:
             raise forms.ValidationError("Las contraseñas no coinciden.")
+        # Si se proporciona una contraseña, debe haber una confirmación
+        if password1 and not password2:
+            raise forms.ValidationError("Debe confirmar la nueva contraseña.")
+        if password2 and not password1:
+            raise forms.ValidationError(
+                "Debe ingresar una nueva contraseña para confirmarla.")
         return cleaned_data
 
     def save(self, commit=True):
@@ -35,8 +41,8 @@ class UserAdminForm(forms.ModelForm):
         if password:
             user.set_password(password)
         else:
-            # Si no se proporciona una contraseña, asegurarse de que el campo password no se modifique
-            if not user.pk:  # Si es un usuario nuevo, establecer una contraseña no utilizable
+            # Si no se proporciona una contraseña y es un usuario nuevo, establecer una contraseña no utilizable
+            if not user.pk:
                 user.set_unusable_password()
         if commit:
             user.save()
@@ -60,13 +66,15 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ('username', 'first_name', 'last_name')
     ordering = ('username',)
 
+    # Fieldsets para edición (incluye los campos de contraseña)
     fieldsets = (
-        (None, {'fields': ('username',)}),
+        (None, {'fields': ('username', 'password1', 'password2')}),
         ('Información Personal', {'fields': ('first_name', 'last_name', 'email', 'telefono')}),
         ('Permisos', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Información Adicional', {'fields': ('role', 'sede')}),
     )
 
+    # Fieldsets para creación (igual que para edición)
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
@@ -75,10 +83,8 @@ class UserAdmin(BaseUserAdmin):
     )
 
     def get_fieldsets(self, request, obj=None):
-        if not obj:  # Si es un usuario nuevo
-            return self.add_fieldsets
-        # Si es un usuario existente, no mostramos los campos de contraseña
-        return self.fieldsets
+        # Usamos los mismos fieldsets para creación y edición
+        return self.fieldsets if obj else self.add_fieldsets
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
