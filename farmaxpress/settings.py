@@ -72,10 +72,19 @@ TEMPLATES = [
 WSGI_APPLICATION = 'farmaxpress.wsgi.application'
 
 
-# Database
+# Databaseñ
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "db_farmaxpress",
+        "USER": "postgres",
+        "PASSWORD": "qwerty78963",
+        "HOST": "190.242.60.212",
+        "PORT": "5436",
+    }
+}
 
 
 # Password validation

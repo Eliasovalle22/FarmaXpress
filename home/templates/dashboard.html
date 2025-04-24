@@ -691,7 +691,7 @@
                 const row = this.closest('tr');
                 const productoId = row.getAttribute('data-id');
 
-                fetch(`/eliminar_producto/${productoId}/`, {
+                fetch(`/farmaxpress/eliminar_producto/${productoId}/`, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
@@ -735,7 +735,7 @@
                 const row = this.closest('tr');
                 const productoId = row.getAttribute('data-id');
 
-                fetch(`/dar_baja_producto/${productoId}/`, {
+                fetch(`/farmaxpress/dar_baja_producto/${productoId}/`, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value

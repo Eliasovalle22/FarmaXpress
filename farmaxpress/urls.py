@@ -46,3 +46,6 @@ urlpatterns = [
     # URL para dar de baja productos
     path('farmaxpress/dar_baja_producto/<int:producto_id>/',views.dar_baja_producto, name='dar_baja_producto'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+
